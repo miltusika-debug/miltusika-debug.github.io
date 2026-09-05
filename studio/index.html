@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>龙老板工作室 · 数据看板</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', 'SimSun', serif;
+    background: linear-gradient(160deg, #10141d 0%, #090b10 55%, #16110a 100%);
+    color: #ece5d3;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+}
+.container { max-width: 960px; margin: 0 auto; }
+h1 {
+    text-align: center; letter-spacing: 0.3em; text-indent: 0.3em;
+    background: linear-gradient(180deg, #f5e6b8 0%, #d4af37 45%, #9c7c1e 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 2rem; margin-bottom: 0.3rem;
+}
+.sub { text-align: center; color: #c9a84c; letter-spacing: 0.4em; font-size: 0.8rem; opacity: 0.8; margin-bottom: 2rem; }
+.card {
+    background: rgba(18, 21, 32, 0.88);
+    border: 1px solid rgba(212, 175, 55, 0.32);
+    border-radius: 6px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+.card h2 { color: #d4af37; letter-spacing: 0.15em; font-size: 1.15rem; margin-bottom: 1rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+th { color: #c9a84c; text-align: left; padding: 0.6rem; border-bottom: 2px solid rgba(212,175,55,0.5); white-space: nowrap; }
+td { padding: 0.6rem; border-bottom: 1px solid rgba(212,175,55,0.15); white-space: nowrap; }
+.neg { color: #ef4444; } .pos { color: #22c55e; } .warn { color: #f59e0b; }
+.meta { text-align: center; opacity: 0.6; font-size: 0.8rem; margin-top: 1.5rem; }
+.readonly-badge {
+    display: inline-block; border: 1px solid rgba(212,175,55,0.5); color: #c9a84c;
+    border-radius: 12px; padding: 0.1rem 0.7rem; font-size: 0.75rem; margin-left: 0.5rem;
+    vertical-align: middle; letter-spacing: 0.1em;
+}
+#lockScreen {
+    max-width: 380px; margin: 15vh auto 0; text-align: center;
+    background: rgba(18,21,32,0.9); border: 1px solid rgba(212,175,55,0.4);
+    border-radius: 8px; padding: 2.5rem 2rem;
+}
+#lockScreen .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+#lockScreen input {
+    width: 100%; padding: 0.7rem; margin: 1rem 0; border-radius: 4px;
+    border: 1px solid rgba(212,175,55,0.4); background: #0d1018; color: #ece5d3;
+    font-size: 1rem; text-align: center; outline: none;
+}
+#lockScreen button {
+    width: 100%; padding: 0.7rem; border: none; border-radius: 4px; cursor: pointer;
+    background: linear-gradient(180deg, #d4af37, #9c7c1e); color: #14100a;
+    font-size: 1rem; font-weight: bold; letter-spacing: 0.2em;
+}
+#errMsg { color: #ef4444; font-size: 0.85rem; min-height: 1.2em; margin-top: 0.5rem; }
+#dataView { display: none; }
+@media (max-width: 640px) {
+    .card { padding: 1rem; overflow-x: auto; }
+    body { padding: 1rem 0.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>龙老板工作室</h1>
+    <div class="sub">DRAGON BOSS ATELIER · 数据看板<span class="readonly-badge">只读</span></div>
+
+    <div id="lockScreen">
+        <div class="icon">🔐</div>
+        <div>此页面内容已加密</div>
+        <input type="password" id="pwInput" placeholder="请输入访问密码" autocomplete="off">
+        <button onclick="unlock()">解 锁</button>
+        <div id="errMsg"></div>
+    </div>
+
+    <div id="dataView"></div>
+</div>
+
+<script>
+var PAYLOAD = "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";
+var ITERATIONS = 200000;
+
+function b64ToBytes(b64) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+}
+
+function fmtMoney(n) {
+    return '¥' + Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function balanceClass(n) {
+    return n < 0 ? 'neg' : (n < 50 ? 'warn' : 'pos');
+}
+function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function unlock() {
+    var pw = document.getElementById('pwInput').value;
+    var err = document.getElementById('errMsg');
+    err.textContent = '';
+    if (!pw) { err.textContent = '请输入密码'; return; }
+    try {
+        var raw = b64ToBytes(PAYLOAD);
+        var salt = raw.slice(0, 16), iv = raw.slice(16, 32);
+        var tag = raw.slice(raw.length - 32);
+        var ct = raw.slice(32, raw.length - 32);
+
+        var pwKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+        var bits = await crypto.subtle.deriveBits(
+            { name: 'PBKDF2', salt: salt, iterations: ITERATIONS, hash: 'SHA-256' }, pwKey, 512);
+        var km = new Uint8Array(bits);
+        var encKey = await crypto.subtle.importKey('raw', km.slice(0, 32), { name: 'AES-CBC' }, false, ['decrypt']);
+        var macKey = await crypto.subtle.importKey('raw', km.slice(32), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+
+        var toVerify = new Uint8Array(raw.length - 32);
+        toVerify.set(raw.slice(0, raw.length - 32));
+        var ok = await crypto.subtle.verify('HMAC', macKey, tag, toVerify);
+        if (!ok) { err.textContent = '密码错误'; return; }
+
+        var plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, encKey, ct);
+        var data = JSON.parse(new TextDecoder().decode(plain));
+        render(data);
+    } catch (e) {
+        err.textContent = '密码错误或数据损坏';
+    }
+}
+
+function render(data) {
+    document.getElementById('lockScreen').style.display = 'none';
+    var view = document.getElementById('dataView');
+    var html = '';
+
+    if (data.accounts && data.accounts.length) {
+        var totalBalance = 0, totalFee = 0;
+        data.accounts.forEach(function (a) { totalBalance += a.balance; totalFee += a.monthlyFee; });
+        html += '<div class="card"><h2>🤖 机器账号（' + data.accounts.length + '个 · 余额合计 <span class="' +
+            balanceClass(totalBalance) + '">' + fmtMoney(totalBalance) + '</span> · 月租合计 ' + fmtMoney(totalFee) + '）</h2>';
+        html += '<table><thead><tr><th>机器号</th><th>手机号</th><th>实际控制人</th><th>手机余额</th><th>月租</th><th>类型</th></tr></thead><tbody>';
+        data.accounts.forEach(function (a) {
+            html += '<tr><td>' + (a.machineNumber != null ? a.machineNumber : '—') + '</td><td>' + esc(a.phone) +
+                '</td><td>' + esc(a.owner) + '</td><td class="' + balanceClass(a.balance) + '">' + fmtMoney(a.balance) +
+                '</td><td>' + fmtMoney(a.monthlyFee) + '</td><td>' + esc((a.types || []).join('、')) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+    }
+
+    if (data.withdrawals && data.withdrawals.length) {
+        html += '<div class="card"><h2>💳 提现实名（' + data.withdrawals.length + '条）</h2>';
+        html += '<table><thead><tr><th>姓名</th><th>平台</th><th>关联机器号</th></tr></thead><tbody>';
+        data.withdrawals.forEach(function (w) {
+            html += '<tr><td>' + esc(w.name) + '</td><td>' + esc(w.platform) + '</td><td>' +
+                esc((w.machineNumbers || []).join('、')) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+    }
+
+    if (data.shareholderAssets && data.shareholderAssets.length) {
+        var totalInv = 0;
+        data.shareholderAssets.forEach(function (a) { totalInv += a.investment; });
+        html += '<div class="card"><h2>👥 股东出资（合计 ' + fmtMoney(totalInv) + '）</h2>';
+        html += '<table><thead><tr><th>姓名</th><th>类型</th><th>出资额</th><th>日期</th></tr></thead><tbody>';
+        data.shareholderAssets.forEach(function (a) {
+            html += '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.type) + '</td><td>' + fmtMoney(a.investment) +
+                '</td><td>' + esc(a.date) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+    }
+
+    html += '<div class="meta">数据更新于 ' + esc(data.generatedAt) + ' · 本页面为只读快照</div>';
+    view.innerHTML = html;
+    view.style.display = 'block';
+}
+
+document.getElementById('pwInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') unlock();
+});
+</script>
+</body>
+</html>
