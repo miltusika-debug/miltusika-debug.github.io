@@ -11,6 +11,17 @@
         location.replace('index.html');
         return;
     }
+    // 版本自检：本页是缓存旧版就跳回门禁页强制刷新（随机参数穿透任何缓存）
+    (function () {
+        var m = /[?&]v=(\d+)/.exec(location.search);
+        var myVer = m ? m[1] : '';
+        fetch('version.txt?r=' + Math.random(), { cache: 'no-store' })
+            .then(function (r) { return r.text(); })
+            .then(function (t) {
+                if (t.trim() !== myVer) location.replace('index.html?r=' + t.trim());
+            })
+            .catch(function () {});
+    })();
     // 线上版本为只读快照：交易数据的修改不落盘，刷新即还原
     localStorage.setItem = function (k, v) {
         if (k.indexOf('trading-journal-') === 0) return;
