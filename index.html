@@ -47,10 +47,11 @@ body {
     <input type="password" id="pwInput" placeholder="请输入访问密码" autocomplete="off">
     <button onclick="unlock()">解 锁</button>
     <div id="errMsg"></div>
-    <div class="badge">只读快照 · 数据更新于 2026-09-06 16:39</div>
+    <div class="badge">只读快照 · 数据更新于 2026-09-06 16:45</div>
 </div>
 <script>
 var ITERATIONS = 200000;
+var PW_KEY = 'trading-gate-pw';
 function b64ToBytes(b64) {
     var bin = atob(b64);
     var bytes = new Uint8Array(bin.length);
@@ -84,13 +85,18 @@ async function unlock() {
         var km = new Uint8Array(bits);
         var macKey = await crypto.subtle.importKey('raw', km.slice(32), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
         var ok = await crypto.subtle.verify('HMAC', macKey, tag, raw.slice(0, raw.length - 32));
-        if (!ok) { err.textContent = '密码错误'; return; }
+        if (!ok) {
+            localStorage.removeItem(PW_KEY);  // 密码可能已更换，清掉记住的
+            err.textContent = '密码错误';
+            return;
+        }
         var encKey = await crypto.subtle.importKey('raw', km.slice(0, 32), { name: 'AES-CBC' }, false, ['decrypt']);
         var plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, encKey, ct);
         var data = JSON.parse(new TextDecoder().decode(plain));
         Object.keys(data.seeds).forEach(function (k) {
             localStorage.setItem(k, data.seeds[k]);
         });
+        localStorage.setItem(PW_KEY, pw);  // 解锁成功：记住密码，下次自动进入
         location.replace('app.html?v=' + ver);  // 带版本跳转，本体更新后强制拉新
     } catch (e) {
         err.textContent = '密码错误或数据损坏';
@@ -99,6 +105,15 @@ async function unlock() {
 document.getElementById('pwInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') unlock();
 });
+// 已解锁过：自动填充并直接进入
+(function () {
+    var saved = localStorage.getItem(PW_KEY);
+    if (saved) {
+        document.getElementById('pwInput').value = saved;
+        document.getElementById('errMsg').textContent = '已记住密码，正在进入…';
+        unlock();
+    }
+})();
 </script>
 </body>
 </html>
