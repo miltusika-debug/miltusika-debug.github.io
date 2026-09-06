@@ -47,7 +47,7 @@ body {
     <input type="password" id="pwInput" placeholder="请输入访问密码" autocomplete="off">
     <button onclick="unlock()">解 锁</button>
     <div id="errMsg"></div>
-    <div class="badge">只读快照 · 数据更新于 2026-09-06 16:19</div>
+    <div class="badge">只读快照 · 数据更新于 2026-09-06 16:31</div>
 </div>
 <script>
 var ITERATIONS = 200000;
@@ -64,9 +64,13 @@ async function unlock() {
     if (!pw) { err.textContent = '请输入密码'; return; }
     err.textContent = '解密中…';
     try {
+        // 1. 先取版本清单：随机参数 + no-store，任何缓存（含微信内置浏览器）都拦不住
+        var vresp = await fetch('version.txt?r=' + Math.random(), { cache: 'no-store' });
+        var ver = (await vresp.text()).trim();
+        // 2. 按版本号取数据分块：每次发布版本号都变，URL 变了必然拿到最新数据
         var encText = '';
         for (var ci = 1; ci <= 50; ci++) {
-            var resp = await fetch('data-' + ci + '.txt', { cache: 'no-cache' });
+            var resp = await fetch('data-' + ci + '.txt?v=' + ver, { cache: 'no-cache' });
             if (!resp.ok) break;
             encText += (await resp.text()).trim();
         }
@@ -87,7 +91,7 @@ async function unlock() {
         Object.keys(data.seeds).forEach(function (k) {
             localStorage.setItem(k, data.seeds[k]);
         });
-        location.replace('app.html');
+        location.replace('app.html?v=' + ver);  // 带版本跳转，本体更新后强制拉新
     } catch (e) {
         err.textContent = '密码错误或数据损坏';
     }
